@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\ImportCsvRequest;
 use App\Models\Import;
 use App\Jobs\ImportUsersJob;
 use Illuminate\Http\RedirectResponse;
@@ -16,18 +16,9 @@ class ImportController extends Controller
     {
         return view('imports.index');
     }
-      public function store(Request $request)
+      public function store(ImportCsvRequest $request)
     {
-        $validated = $request->validate([
-            'csv_file' => [
-                'required',
-                'file',
-                'mimes:csv,txt',
-                'max:10240',
-            ],
-        ]);
-
-        $file = $validated['csv_file'];
+        $file = $request->file('csv_file');
 
         /*
          * Save the uploaded CSV file.
@@ -65,7 +56,9 @@ class ImportController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('imports.history', compact('imports'));
+        return view('imports.history', [
+            'imports' => $imports,
+    ]);
     }
 
     public function show(Import $import)
@@ -76,6 +69,10 @@ class ImportController extends Controller
             ->latest()
             ->paginate(20);
 
-        return view('imports.show', compact('import', 'errors'));
+        return view('imports.show',[
+             'import' => $import,
+        'errors' => $errors,
+            ]
+    );
     }
 }
