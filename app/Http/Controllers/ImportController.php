@@ -70,8 +70,8 @@ class ImportController extends Controller
             ->paginate(20);
 
         return view('imports.show',[
-             'import' => $import,
-        'errors' => $errors,
+            'import' => $import,
+            'errors' => $errors,
             ]
     );
     }
