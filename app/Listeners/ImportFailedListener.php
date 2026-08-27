@@ -6,6 +6,8 @@ use App\Events\ImportFailed;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use App\Notifications\ImportFailedNotification;
+use App\Mail\ImportFailedMail;
+use Illuminate\Support\Facades\Mail;
 
 class ImportFailedListener
 {
@@ -30,5 +32,6 @@ class ImportFailedListener
                 $event->errorMessage
             )
         );
+        Mail::to($user->email)->send(new ImportFailedMail($event->import));
     }
 }

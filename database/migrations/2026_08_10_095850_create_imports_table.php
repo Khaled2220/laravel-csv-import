@@ -8,55 +8,36 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('imports', function (Blueprint $table) {
-            $table->string('file_name')->after('id');
+        Schema::create('imports', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('file_name');
 
             $table->enum('status', [
                 'pending',
                 'processing',
                 'completed',
                 'failed',
-            ])->default('pending')->after('file_path');
+            ])->default('pending');
 
-            $table->unsignedInteger('total_records')
-                ->default(0)
-                ->after('status');
+            $table->unsignedInteger('total_records')->default(0);
 
-            $table->unsignedInteger('processed_records')
-                ->default(0)
-                ->after('total_records');
+            $table->unsignedInteger('processed_records')->default(0);
 
-            $table->unsignedInteger('failed_records')
-                ->default(0)
-                ->after('processed_records');
+            $table->unsignedInteger('failed_records')->default(0);
 
-            $table->timestamp('started_at')
-                ->nullable()
-                ->after('failed_records');
+            $table->timestamp('started_at')->nullable();
 
-            $table->timestamp('completed_at')
-                ->nullable()
-                ->after('started_at');
+            $table->timestamp('completed_at')->nullable();
 
-            $table->text('error_message')
-                ->nullable()
-                ->after('completed_at');
+            $table->text('error_message')->nullable();
+
+            $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::table('imports', function (Blueprint $table) {
-            $table->dropColumn([
-                'file_name',
-                'status',
-                'total_records',
-                'processed_records',
-                'failed_records',
-                'started_at',
-                'completed_at',
-                'error_message',
-            ]);
-        });
+        Schema::dropIfExists('imports');
     }
 };

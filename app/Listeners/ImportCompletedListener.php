@@ -6,6 +6,8 @@ use App\Events\ImportCompleted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use App\Notifications\ImportCompletedNotification;
+use App\Mail\ImportCompletedMail;
+use Illuminate\Support\Facades\Mail;
 
 
 class ImportCompletedListener
@@ -29,5 +31,6 @@ class ImportCompletedListener
         $user->notify(
             new ImportCompletedNotification($event->import)
         );
+        Mail::to($user->email)->send(new ImportCompletedMail ($event->import));
     }
 }
