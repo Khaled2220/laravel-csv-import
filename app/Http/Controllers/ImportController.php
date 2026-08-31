@@ -7,6 +7,8 @@ use App\Models\Import;
 use App\Jobs\ImportUsersJob;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use App\Http\Requests\ShowImportRequest;
+use App\Services\ImportService;
 
 
 
@@ -20,35 +22,17 @@ class ImportController extends Controller
     {
         $file = $request->file('csv_file');
 
-        /*
-         * Save the uploaded CSV file.
-         */
-        $filePath = $file->store('imports','local');
-
-        /*
-         * Create import history record.
-         */
-        $import = Import::create([
-            'user_id' => $request->user()->id,
-            'file_name' => $file->getClientOriginalName(),
-            'file_path' => $filePath,
-            'status' => 'pending',
-            'total_records' => 0,
-            'processed_records' => 0,
-            'failed_records' => 0,
-        ]);
-
-        /*
-         * Process the CSV in the background.
-         */
-        ImportUsersJob::dispatch($import->id);
-
+        
+        $this->importservice->createImport(
+        $file,
+        $request->user()->id
+        );
         return redirect()
-            ->route('imports.index')
-            ->with(
-                'success',
-                'CSV import started successfully.'
-            );
+        ->route('imports.index')
+        ->with(
+            'success',
+            'CSV import started successfully.'
+        );
     }
       public function history()
     {
@@ -61,10 +45,8 @@ class ImportController extends Controller
     ]);
     }
 
-    public function show(Import $import)
+    public function show(ShowImportRequest $request,Import $import)
     {
-        abort_unless($import->user_id === auth()->id(), 403);
-
         $errors = $import->errors()
             ->latest()
             ->paginate(20);
@@ -72,7 +54,10 @@ class ImportController extends Controller
         return view('imports.show',[
             'import' => $import,
             'errors' => $errors,
-            ]
-    );
+            ]);
+    }
+    public function __construct(private ImportService $importservice 
+    ){
+
     }
 }
