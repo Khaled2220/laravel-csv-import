@@ -9,22 +9,25 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use App\Http\Requests\ShowImportRequest;
 use App\Services\ImportService;
+use Illuminate\Http\Request;
 
 
 
 class ImportController extends Controller
 {
+    public function __construct(
+        private ImportService $importservice){
+            //
+        }
     public function index()
     {
         return view('imports.index');
     }
-      public function store(ImportCsvRequest $request)
+      public function store(ImportCsvRequest $request): RedirectResponse
     {
-        $file = $request->file('csv_file');
-
-        
+        //$file = $request->file('csv_file');
         $this->importservice->createImport(
-        $file,
+        $request->file('csv_file'),
         $request->user()->id
         );
         return redirect()
@@ -34,19 +37,22 @@ class ImportController extends Controller
             'CSV import started successfully.'
         );
     }
-      public function history()
-    {
-        $imports = Import::where('user_id', auth()->id())
+      public function history(Request $request):
+    View {
+
+       $imports = Import::where(
+        'user_id', $request->user()->id)
             ->latest()
             ->paginate(10);
 
         return view('imports.history', [
             'imports' => $imports,
-    ]);
+        ]);
+        
     }
 
-    public function show(ShowImportRequest $request,Import $import)
-    {
+    public function show(Request $request,Import $import):
+    view{
         $errors = $import->errors()
             ->latest()
             ->paginate(20);
@@ -55,9 +61,5 @@ class ImportController extends Controller
             'import' => $import,
             'errors' => $errors,
             ]);
-    }
-    public function __construct(private ImportService $importservice 
-    ){
-
     }
 }

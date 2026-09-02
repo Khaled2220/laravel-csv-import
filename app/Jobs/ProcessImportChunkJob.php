@@ -17,37 +17,44 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Str;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
 class ProcessImportChunkJob implements ShouldQueue
 {
-    use Queueable;
     use Dispatchable;
     use InteractsWithQueue;
+    use Queueable;
     use SerializesModels;
     use Batchable;
 
+    /**
+     * Maximum number of attempts.
+     */
+    public int $tries = 3;
 
-    public int $tries=3;
-
-    public int $timeout=120;
+    /**
+     * Maximum execution time in seconds.
+     */
+    public int $timeout = 120;
 
     /**
      * Create a new job instance.
      */
     public function __construct(
-        public int $importId ,
-        public int $startRow , 
-        public int $chunkSize=1000
-    )
-    {
-        //
+        public int $importId,
+        public int $startRow,
+        public int $chunkSize = 1000
+    ) {
     }
-    public function backoff():array
+
+    /**
+     * Retry delays in seconds.
+     */
+    public function backoff(): array
     {
-        return [10,30,60];
+        return [10, 30, 60];
     }
 
     /**
@@ -55,69 +62,109 @@ class ProcessImportChunkJob implements ShouldQueue
      */
     public function handle(): void
     {
-        if ($this->batch()?->cancelled()){
-            Log::info('Import chunk skipped because batch was cancelled',[
-            'import_id'=>$this->importId,
-            'start_row'=>$this->startRow
+        /*
+         * Do not process anything if the Laravel batch
+         * has already been cancelled.
+         */
+        if ($this->batch()?->cancelled()) {
+            Log::info('Import chunk skipped because batch was cancelled', [
+                'import_id' => $this->importId,
+                'start_row' => $this->startRow,
             ]);
-            return ;
-        }
-        $import =Import::findOrFail($this->importId);
 
-        if ($import->status === 'cancelled'){
-            LOg::info('Import chunk skipped because import was cancelled',[
-                'import_id'=>$import->id,
-                'start_row' =>$this->startRow
-            ]);
-            return ;
+            return;
         }
-        $disk=Storage::disk('local');
+
+        $import = Import::findOrFail($this->importId);
+
+        /*
+         * A cancelled import must never continue processing.
+         */
+        if ($import->status === 'cancelled') {
+            Log::info('Import chunk skipped because import was cancelled', [
+                'import_id' => $import->id,
+                'start_row' => $this->startRow,
+            ]);
+
+            return;
+        }
+
+        $disk = Storage::disk('local');
+
         if (! $disk->exists($import->file_path)) {
             throw new RuntimeException(
-                    "Import file not found: {$filePath}"
+                "Import file not found: {$import->file_path}"
             );
         }
-        $filePath=$disk->path($import->file_path);
+
+        $filePath = $disk->path($import->file_path);
+
         $handle = fopen($filePath, 'r');
-        if ($handle ===false){
-            throw new \RuntimeException(
+
+        if ($handle === false) {
+            throw new RuntimeException(
                 'Unable to open CSV file.'
             );
         }
-        $processedInChunk=0;
-        $failedInChunk=0;
-        $skippedINChunk=0;
-        
+
+        $processedInChunk = 0;
+        $failedInChunk = 0;
+        $skippedInChunk = 0;
+
         try {
             $rowNumber = 0;
+
             while (($row = fgetcsv($handle)) !== false) {
                 $rowNumber++;
+
+                /*
+                 * Skip CSV header.
+                 */
                 if ($rowNumber === 1) {
                     continue;
                 }
 
+                /*
+                 * Skip rows before this chunk.
+                 */
                 if ($rowNumber < $this->startRow) {
                     continue;
                 }
 
-                if ($rowNumber >= $this->startRow + $this->chunkSize) {
+                /*
+                 * Stop when this chunk is finished.
+                 */
+                if (
+                    $rowNumber >=
+                    $this->startRow + $this->chunkSize
+                ) {
                     break;
                 }
 
+                /*
+                 * Ignore completely empty rows.
+                 */
                 if ($this->isEmptyRow($row)) {
                     continue;
                 }
 
-                $currentImport=$import->fresh();
+                /*
+                 * Check cancellation before every row.
+                 */
+                $currentImport = $import->fresh();
+
                 if ($currentImport->status === 'cancelled') {
                     Log::info(
-                        'Import chunk stopped because import was cancell',[
-                            'import_id'=>$import->id,
-                            'row_number'=>$rowNumber
+                        'Import chunk stopped because import was cancelled',
+                        [
+                            'import_id' => $import->id,
+                            'row_number' => $rowNumber,
                         ]
                     );
+
                     break;
                 }
+
                 $result = $this->processRow(
                     $import,
                     $row,
@@ -125,39 +172,52 @@ class ProcessImportChunkJob implements ShouldQueue
                 );
 
                 if ($result === 'processed') {
-                    $processedInChunk ++;
-                }elseif($result === 'failed') {
-                    $failedInChunk ++;
-                }elseif($result ==='skipped'){
-                    $skippedINChunk ++;
-                } 
-            }  
-        }    
-        finally {
+                    $processedInChunk++;
+                } elseif ($result === 'failed') {
+                    $failedInChunk++;
+                } elseif ($result === 'skipped') {
+                    $skippedInChunk++;
+                }
+            }
+        } finally {
             fclose($handle);
         }
-        Log:info('Import chunk processed',[
-            'import_id'=>$import->id,
-            'start_row'=>$this->startRow,
-            'chunk_size'=>$this->chunksize,
-            'processed'=>$processedInChunk,
-            'failed'=>$failedInChunk,
-            'skipped'=>$skippedINChunk
+
+        Log::info('Import chunk processed', [
+            'import_id' => $import->id,
+            'start_row' => $this->startRow,
+            'chunk_size' => $this->chunkSize,
+            'processed' => $processedInChunk,
+            'failed' => $failedInChunk,
+            'skipped' => $skippedInChunk,
         ]);
     }
+
+    /**
+     * Process a single CSV row.
+     */
     private function processRow(
         Import $import,
         array $row,
-        int $rowNumber ): 
-        string {
-        $name = trim($row[0] ?? '');
-        $email = trim($row[1] ?? '');
+        int $rowNumber
+    ): string {
+        $name = trim((string) ($row[0] ?? ''));
+        $email = trim((string) ($row[1] ?? ''));
 
         $data = [
             'name' => $name,
             'email' => $email,
         ];
 
+        /*
+         * Every CSV row has exactly one ImportRecord.
+         *
+         * The database unique constraint on:
+         *
+         * import_id + row_number
+         *
+         * prevents duplicate records.
+         */
         $record = ImportRecord::firstOrCreate(
             [
                 'import_id' => $import->id,
@@ -168,14 +228,23 @@ class ProcessImportChunkJob implements ShouldQueue
             ]
         );
 
-        if($record->status === 'processed'){
+        /*
+         * If this row was already completed,
+         * do not process it again.
+         */
+        if (
+            in_array(
+                $record->status,
+                ['processed', 'failed'],
+                true
+            )
+        ) {
             return 'skipped';
         }
 
-        if($record->status === 'failed'){
-            return 'skipped';
-        }
-
+        /*
+         * Validate CSV data.
+         */
         $validator = Validator::make(
             $data,
             [
@@ -197,7 +266,10 @@ class ProcessImportChunkJob implements ShouldQueue
                 $import,
                 $record,
                 $data,
-                implode( ' ', $validator->errors()->all() )
+                implode(
+                    ' ',
+                    $validator->errors()->all()
+                )
             );
         }
 
@@ -205,9 +277,14 @@ class ProcessImportChunkJob implements ShouldQueue
             DB::transaction(function () use (
                 $record,
                 $data
-            ) 
-            {
-                $user = User::firstOrCreate(
+            ) {
+                /*
+                 * email must have a UNIQUE database index.
+                 *
+                 * firstOrCreate prevents duplicate users
+                 * when a Job is retried.
+                 */
+                User::firstOrCreate(
                     [
                         'email' => $data['email'],
                     ],
@@ -218,9 +295,22 @@ class ProcessImportChunkJob implements ShouldQueue
                         ),
                     ]
                 );
-                $record->update([ 'status' => 'processed', ]);
+
+                /*
+                 * Mark the CSV row as successfully processed
+                 * inside the same transaction.
+                 */
+                $record->update([
+                    'status' => 'processed',
+                ]);
             });
+
+            /*
+             * The row transaction has succeeded,
+             * so update the import progress.
+             */
             $import->increment('processed_records');
+
             return 'processed';
 
         } catch (Throwable $e) {
@@ -230,47 +320,75 @@ class ProcessImportChunkJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
+            /*
+             * Throwing the exception allows Laravel's queue
+             * system to retry the Job.
+             */
             throw $e;
         }
     }
 
-    private function markRowAsFailed(Import $import, ImportRecord $record,  array $data,  String $errorMessage):string
-        {
-            DB::transaction(function() use(
-                $import,
-                $record,
-                $data,
-                $errorMessage
-            )
-            {
-                ImportError::firstOrCreate(
-                [ 
-                'import_id' => $import->id,
-                'row_number' => $record->row_number
+    /**
+     * Store a validation error for a CSV row.
+     */
+    private function markRowAsFailed(
+        Import $import,
+        ImportRecord $record,
+        array $data,
+        string $errorMessage
+    ): string {
+        DB::transaction(function () use (
+            $import,
+            $record,
+            $data,
+            $errorMessage
+        ) {
+            /*
+             * firstOrCreate prevents duplicate error records
+             * when the same Job is retried.
+             */
+            ImportError::firstOrCreate(
+                [
+                    'import_id' => $import->id,
+                    'row_number' => $record->row_number,
                 ],
                 [
-                    'row_data'=>$data,
-                    'error_message'=>$errorMessage
+                    'row_data' => $data,
+                    'error_message' => $errorMessage,
                 ]
             );
-            $record->update(['status'=>'failed']);
 
-            $import->increment('failed_recored');
+            /*
+             * Only change the record if it has not already
+             * been completed.
+             */
+            if ($record->status !== 'failed') {
+                $record->update([
+                    'status' => 'failed',
+                ]);
 
-            });
-            Log::warning('Import row validation failed',[
-                'import_id'=>$import->id,
-                'row_number'=>$rowNumber
-            ]);
-            return 'failed';
-        }
+                $import->increment('failed_records');
+            }
+        });
 
+        Log::warning('Import row validation failed', [
+            'import_id' => $import->id,
+            'row_number' => $record->row_number,
+        ]);
+
+        return 'failed';
+    }
+
+    /**
+     * Determine whether a CSV row is completely empty.
+     */
     private function isEmptyRow(array $row): bool
     {
         return count(
             array_filter(
                 $row,
-                fn ($value) => trim((string) $value) !== ''
+                fn ($value) =>
+                    trim((string) $value) !== ''
             )
         ) === 0;
     }
