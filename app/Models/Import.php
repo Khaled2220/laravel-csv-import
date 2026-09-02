@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Bus\Batch;
+use Illuminate\Support\Facades\Bus;
 
 class Import extends Model
 {
@@ -19,6 +21,7 @@ class Import extends Model
         'started_at',
         'completed_at',
         'error_message',
+        'batch_id'
     ];
 
     protected function casts(): array
@@ -37,4 +40,16 @@ class Import extends Model
     {
         return $this->hasMany(ImportError::class);
     }
+      public function records(): HasMany
+    {
+        return $this->hasMany(ImportRecord::class);
+    }
+     public function batch(): ?Batch
+    {
+        if (!$this->batch_id) {
+            return null;
+        }
+    return Bus::findBatch($this->batch_id);
+    }
+
 }
