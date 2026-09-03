@@ -35,6 +35,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/imports/{import}', [ImportController::class, 'show'])
         ->name('imports.show');
+
+    Route::post('/imports/{import}/cancel',[ImportController::class,'cancel'])
+    ->name('imports.cancel');
+    
+    Route::post('/imports/{import}/retry',[ImportController::class,'retry'])
+    ->name('imports.retry');
 });
 
 require __DIR__.'/auth.php';
