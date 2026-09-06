@@ -1,0 +1,16 @@
+[90m= [39m[34;4mApp\Models\Import[39;24m {#8160
+    [34mid[39m: [35m40[39m,
+    [34mfile_name[39m: [32m"[39m[32mtest20_users.csv[39m[32m"[39m,
+    [34mstatus[39m: [32m"[39m[32mcompleted[39m[32m"[39m,
+    [34mtotal_records[39m: [35m20[39m,
+    [34mprocessed_records[39m: [35m19[39m,
+    [34mfailed_records[39m: [35m1[39m,
+    [34mstarted_at[39m: [32m"[39m[32m2026-09-06 09:55:30[39m[32m"[39m,
+    [34mcompleted_at[39m: [32m"[39m[32m2026-09-06 09:55:37[39m[32m"[39m,
+    [34merror_message[39m: [36mnull[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-09-06 09:27:36[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-09-06 09:55:37[39m[32m"[39m,
+    [34mfile_path[39m: [32m"[39m[32mimports/SK8t1KcIGaPgXCDCDerbcZ9ieFSHoVviTWaX7yTn.csv[39m[32m"[39m,
+    [34muser_id[39m: [35m1[39m,
+    [34mbatch_id[39m: [32m"[39m[32ma2ae2672-e4c9-4a58-9769-2f5deb43d8b5[39m[32m"[39m,
+  }
