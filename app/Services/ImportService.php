@@ -16,9 +16,9 @@ class ImportService
     public function createImport(
     UploadedFile $file,
     int $userId
-): Import {
+    ): Import 
+    {
     $filePath = $file->store('imports', 'local');
-
     $import = Import::create([
         'user_id' => $userId,
         'file_name' => $file->getClientOriginalName(),
@@ -28,9 +28,7 @@ class ImportService
         'processed_records' => 0,
         'failed_records' => 0,
     ]);
-
     PrepareImportJob::dispatch($import->id);
-
     return $import;
 }
 
@@ -45,7 +43,8 @@ class ImportService
                 $currentImport->status,
                 ['pending', 'processing'],
                 true
-            )) {
+            )) 
+            {
                 throw new RuntimeException(
                     'Only pending or processing imports can be cancelled.'
                 );
@@ -60,25 +59,22 @@ class ImportService
                     $batch->cancel();
                 }
             }
-
             $currentImport->update([
                 'status' => 'cancelled',
                 'completed_at' => now(),
             ]);
-
             Log::info('Import cancelled', [
                 'import_id' => $currentImport->id,
                 'batch_id' => $currentImport->batch_id,
             ]);
-
             return $currentImport->fresh();
         });
     }
 
+
     public function retryImport(Import $import): Import
     {
         return DB::transaction(function () use ($import) {
-
             $currentImport = Import::lockForUpdate()
                 ->findOrFail($import->id);
 
@@ -95,7 +91,6 @@ class ImportService
                     'Import file no longer exists.'
                 );
             }
-
             $currentImport->update([
                 'status' => 'pending',
                 'processed_records' => 0,
@@ -105,17 +100,13 @@ class ImportService
                 'error_message' => null,
                 'batch_id' => null,
             ]);
-
             $currentImport->errors()->delete();
             $currentImport->records()->delete();
-
             PrepareImportJob::dispatch($currentImport->id);
-
             Log::info('Import retry dispatched', [
                 'import_id' => $currentImport->id,
                 'total_records' => $currentImport->total_records,
             ]);
-
             return $currentImport->fresh();
         });
     }

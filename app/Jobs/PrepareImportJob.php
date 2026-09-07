@@ -51,9 +51,7 @@ class PrepareImportJob implements ShouldQueue
         }
         try {
             $filePath = $import->file_path;
-
             $disk = Storage::disk('local');
-
             if (! $disk->exists($filePath)) {
                 throw new RuntimeException(
                     "Import file not found: {$filePath}"
@@ -68,9 +66,7 @@ class PrepareImportJob implements ShouldQueue
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
-
             event(new ImportCompleted($import->fresh()));
-
                 return;
             }    
             $this->dispatchImportBatch(
@@ -117,7 +113,6 @@ class PrepareImportJob implements ShouldQueue
             ->name("Import #{$import->id}")
             ->before(function (Batch $batch) use ($import) {
                  $currentImport = $import->fresh();
-
                 if ($currentImport->status === 'cancelled') {
                     return;
                 }
@@ -125,18 +120,15 @@ class PrepareImportJob implements ShouldQueue
                     'status' => 'processing',
                     'started_at' => now(),
                 ]);
-
                 event(new ImportStarted(
                     $currentImport->fresh()
                 ));
-
                 Log::info('Import batch started', [
                     'import_id' => $import->id,
                     'batch_id' => $batch->id,
                 ]);
             })
             ->then(function (Batch $batch) use ($import) {
-
                 $currentImport = $import->fresh();
 
                 if ($currentImport->status === 'cancelled') {

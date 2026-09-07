@@ -26,11 +26,11 @@ class ImportController extends Controller
     }
 
     public function store(
-        ImportCsvRequest $request
-    ): RedirectResponse {
-        $this->importservice->createImport(
-            $request->file('csv_file'),
-            $request->user()->id
+        ImportCsvRequest $request): 
+        RedirectResponse {
+            $this->importservice->createImport(
+                $request->file('csv_file'),
+                $request->user()->id
         );
 
         return redirect()
