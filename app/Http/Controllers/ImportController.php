@@ -25,8 +25,7 @@ class ImportController extends Controller
         return view('imports.index');
     }
 
-    public function store(
-        ImportCsvRequest $request): 
+    public function store(ImportCsvRequest $request): 
         RedirectResponse {
             $this->importservice->createImport(
                 $request->file('csv_file'),
@@ -41,9 +40,8 @@ class ImportController extends Controller
             );
     }
 
-    public function history(
-        Request $request
-    ): View {
+    public function history(Request $request): View 
+    {
         $imports = Import::where(
             'user_id',
             $request->user()->id
@@ -56,10 +54,8 @@ class ImportController extends Controller
         ]);
     }
 
-    public function show(
-        Request $request,
-        Import $import
-    ): View {
+    public function show(Request $request,Import $import): View 
+    {
         $this->authorize('view', $import);
 
         $errors = $import->errors()
@@ -72,9 +68,8 @@ class ImportController extends Controller
         ]);
     }
 
-    public function cancel(
-        Import $import
-    ): RedirectResponse {
+    public function cancel(Import $import): RedirectResponse 
+    {
         $this->authorize('cancel', $import);
 
         $this->importservice->cancelImport($import);
@@ -87,13 +82,10 @@ class ImportController extends Controller
             );
     }
 
-    public function retry(
-        Import $import
-    ): RedirectResponse {
+    public function retry(Import $import): RedirectResponse 
+    {
         $this->authorize('retry', $import);
-
         $this->importservice->retryImport($import);
-
         return redirect()
             ->route('imports.history')
             ->with(
