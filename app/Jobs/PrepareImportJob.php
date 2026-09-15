@@ -26,7 +26,6 @@ class PrepareImportJob implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 3;
-
     public int $timeout = 120;
 
     /**
@@ -47,11 +46,8 @@ class PrepareImportJob implements ShouldQueue
         if ($import->status === 'cancelled') {
             return;
         }
-
         try {
-
             $filePath = $import->file_path;
-
             $disk = Storage::disk('local');
 
             if (! $disk->exists($filePath)) {
@@ -59,14 +55,12 @@ class PrepareImportJob implements ShouldQueue
                     "Import file not found: {$filePath}"
                 );
             }
-
             $totalRecords = $this->countRecords($filePath);
-
             $import->update([
                 'total_records' => $totalRecords,
             ]);
-            if ($totalRecords === 0) {
 
+            if ($totalRecords === 0) {
                 $import->update([
                     'status' => 'completed',
                     'completed_at' => now(),
@@ -77,54 +71,44 @@ class PrepareImportJob implements ShouldQueue
                         $import->fresh()
                     )
                 );
-
                 return;
             }
             $import->update([
                 'status' => 'processing',
                 'started_at' => now(),
             ]);
-
             event(
-                new ImportStarted(
-                    $import->fresh()
-                )
+                new ImportStarted($import->fresh())
             );
-
             Log::info('Import chain started', [
                 'import_id' => $import->id,
             ]);
+
             $this->dispatchImportChain(
                 $import->fresh(),
                 $totalRecords
             );
-
-        } catch (Throwable $e) {
-
+        } 
+        catch (Throwable $e) {
             $currentImport = $import->fresh();
-
             if ($currentImport->status === 'cancelled') {
                 return;
             }
-
             $currentImport->update([
                 'status' => 'failed',
                 'completed_at' => now(),
                 'error_message' => $e->getMessage(),
             ]);
-
             event(
                 new ImportFailed(
                     $currentImport->fresh(),
                     $e->getMessage()
                 )
             );
-
             Log::error('Prepare import failed', [
                 'import_id' => $import->id,
                 'error' => $e->getMessage(),
             ]);
-
             throw $e;
         }
     }
@@ -133,49 +117,42 @@ class PrepareImportJob implements ShouldQueue
     private function dispatchImportChain(Import $import,int $totalRecords): void 
     {
         $chunkSize = 1000;
-
         $jobs = [];
         for (
             $startRow = 2;
             $startRow <= $totalRecords + 1;
             $startRow += $chunkSize
-        ) {
-
+        ) 
+        {
             $jobs[] = new ProcessImportChunkJob(
                 importId: $import->id,
                 startRow: $startRow,
                 chunkSize: $chunkSize
             );
         }
-
         Bus::chain($jobs)
             ->catch(function (Throwable $exception) use ($import) {
-
                 $currentImport = $import->fresh();
                 if ($currentImport->status === 'cancelled') {
                     return;
                 }
-
                 $currentImport->update([
                     'status' => 'failed',
                     'completed_at' => now(),
                     'error_message' => $exception->getMessage(),
                 ]);
-
                 event(
                     new ImportFailed(
                         $currentImport->fresh(),
                         $exception->getMessage()
                     )
                 );
-
                 Log::error('Import chain failed', [
                     'import_id' => $import->id,
                     'error' => $exception->getMessage(),
                 ]);
             })
             ->dispatch();
-
         Log::info('Import chain dispatched', [
             'import_id' => $import->id,
             'total_records' => $totalRecords,
@@ -188,60 +165,46 @@ class PrepareImportJob implements ShouldQueue
     private function countRecords(string $filePath): int
     {
         $disk = Storage::disk('local');
-
         if (! $disk->exists($filePath)) {
             throw new RuntimeException(
                 "Import file not found: {$filePath}"
             );
         }
-
         $handle = fopen(
             $disk->path($filePath),'r'
         );
-
         if ($handle === false) {
             throw new RuntimeException(
                 'Unable to open CSV file.'
             );
         }
-
         try {
-
             $header = fgetcsv($handle);
-
             if ($header === false) {
                 throw new RuntimeException(
                     'CSV file is empty.'
                 );
             }
-
             $header = array_map(
                 fn ($value) =>
                     strtolower(trim((string) $value)),
                 $header
             );
-
             if ($header !== ['name', 'email']) {
                 throw new RuntimeException(
                     'CSV header must be: name,email'
                 );
             }
-
             $count = 0;
-
             while (($row = fgetcsv($handle)) !== false) {
-
                 if ($this->isEmptyRow($row)) {
                     continue;
                 }
-
                 $count++;
             }
-
             return $count;
-
-        } finally {
-
+        } 
+        finally {
             fclose($handle);
         }
     }
