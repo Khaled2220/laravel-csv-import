@@ -24,13 +24,9 @@ class ImportCompletedListener
      * Handle the event.
      */
     public function handle(ImportCompleted $event): void
-    {
-        
+    {        
         $user = $event->import->user;
-
-        $user->notify(
-            new ImportCompletedNotification($event->import)
-        );
+        $user->notify(new ImportCompletedNotification($event->import));
         Mail::to($user->email)->send(new ImportCompletedMail ($event->import));
     }
 }

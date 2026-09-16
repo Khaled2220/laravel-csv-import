@@ -23,7 +23,6 @@ use Throwable;
 class ImportUsersJob implements ShouldQueue
 {
     use Queueable, Dispatchable, InteractsWithQueue, SerializesModels;
-
     /**
      * Create a new job instance.
      */
@@ -48,8 +47,7 @@ class ImportUsersJob implements ShouldQueue
            if (! Storage::disk('local')->exists($import->file_path)) {
             throw new \RuntimeException(
                 "Import file not found: {$filePath}" );
-    }
-  
+            }
             $handle = fopen($filePath, 'r');
             if ($handle === false) {
                 throw new \RuntimeException(
@@ -78,7 +76,6 @@ class ImportUsersJob implements ShouldQueue
                 if ($this->isEmptyRow($row)) {
                     continue;
                 }
-
                 $totalRecords++;
             }
             $import->update([
@@ -101,17 +98,8 @@ class ImportUsersJob implements ShouldQueue
                 $validator = Validator::make(
                     $data,
                     [
-                        'name' => [
-                            'required',
-                            'string',
-                            'max:255',
-                        ],
-                        'email' => [
-                            'required',
-                            'email',
-                            'max:255',
-                            'unique:users,email',
-                        ],
+                        'name' => ['required','string','max:255',],
+                        'email' => ['required','email','max:255','unique:users,email',],
                     ]
                 );
                 if ($validator->fails()) {
@@ -119,10 +107,7 @@ class ImportUsersJob implements ShouldQueue
                         'import_id' => $import->id,
                         'row_number' => $rowNumber,
                         'row_data' => $data,
-                        'error_message' => implode(
-                            ' ',
-                            $validator->errors()->all()
-                        ),
+                        'error_message' => implode(' ',$validator->errors()->all()),
                     ]);
                     $import->increment('failed_records');
                     continue;
@@ -131,9 +116,7 @@ class ImportUsersJob implements ShouldQueue
                     User::create([
                         'name' => $name,
                         'email' => $email,
-                        'password' => Hash::make(
-                            Str::random(32)
-                        ),
+                        'password' => Hash::make(Str::random(32)),
                     ]);
                     $import->increment('processed_records');
                     } 
@@ -152,7 +135,8 @@ class ImportUsersJob implements ShouldQueue
                 'status' => 'completed',
                 'completed_at' => now(),
             ]);
-        } catch (Throwable $e) {
+        } 
+        catch (Throwable $e) {
             $import->update([
                 'status' => 'failed',
                 'completed_at' => now(),
@@ -168,8 +152,7 @@ class ImportUsersJob implements ShouldQueue
     {
         return count(
             array_filter(
-                $row,
-                fn ($value) => trim((string) $value) !== ''
+                $row,fn ($value) => trim((string) $value) !== ''
             )
         ) === 0;
     }

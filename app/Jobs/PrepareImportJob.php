@@ -20,10 +20,7 @@ use Throwable;
 
 class PrepareImportJob implements ShouldQueue
 {
-    use Queueable;
-    use Dispatchable;
-    use InteractsWithQueue;
-    use SerializesModels;
+    use Queueable,Dispatchable,InteractsWithQueue,SerializesModels;
 
     public int $tries = 3;
     public int $timeout = 120;
@@ -65,11 +62,8 @@ class PrepareImportJob implements ShouldQueue
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
-
                 event(
-                    new ImportCompleted(
-                        $import->fresh()
-                    )
+                    new ImportCompleted($import->fresh())
                 );
                 return;
             }

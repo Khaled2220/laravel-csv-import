@@ -24,20 +24,9 @@ use Throwable;
 
 class ProcessImportChunkJob implements ShouldQueue
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use Queueable;
-    use SerializesModels;
-    use Batchable;
+    use Dispatchable,InteractsWithQueue,Queueable,SerializesModels,Batchable;
 
-    /**
-     * Maximum number of attempts.
-     */
     public int $tries = 3;
-
-    /**
-     * Maximum execution time in seconds.
-     */
     public int $timeout = 120;
 
     /**
@@ -48,7 +37,8 @@ class ProcessImportChunkJob implements ShouldQueue
         public int $startRow,
         public int $chunkSize = 1000,
         public int $totalRecords = 0
-    ) {
+    ){
+        //
     }
 
     /**
@@ -65,22 +55,15 @@ class ProcessImportChunkJob implements ShouldQueue
     public function handle(): void
     {
         if ($this->batch()?->cancelled()) {
-
-            Log::info(
-                'Import chunk skipped because batch was cancelled',
+            Log::info('Import chunk skipped because batch was cancelled',
                 [
                     'import_id' => $this->importId,
                     'start_row' => $this->startRow,
                 ]
             );
-
             return;
         }
-
-        $import = Import::findOrFail(
-            $this->importId
-        );
-
+        $import = Import::findOrFail($this->importId);
         if ($import->status === 'cancelled') {
             Log::info(
                 'Import chunk skipped because import was cancelled',
@@ -91,18 +74,15 @@ class ProcessImportChunkJob implements ShouldQueue
             );
             return;
         }
-
         $disk = Storage::disk('local');
         if (! $disk->exists($import->file_path)) {
             throw new RuntimeException(
                 "Import file not found: {$import->file_path}"
             );
         }
-
         $filePath = $disk->path(
             $import->file_path
         );
-
         $handle = fopen($filePath,'r');
         if ($handle === false) {
             throw new RuntimeException(
@@ -113,6 +93,7 @@ class ProcessImportChunkJob implements ShouldQueue
         $processedInChunk = 0;
         $failedInChunk = 0;
         $skippedInChunk = 0;
+
         try {
             $rowNumber = 0;
             while (
@@ -123,6 +104,7 @@ class ProcessImportChunkJob implements ShouldQueue
                 if ($rowNumber === 1) {
                     continue;
                 }
+
                 if (
                     $rowNumber <
                     $this->startRow
@@ -137,16 +119,14 @@ class ProcessImportChunkJob implements ShouldQueue
                 ) {
                     break;
                 }
-
+                
                 if (
                     $this->isEmptyRow($row)
                 ) {
                     continue;
                 }
 
-                $currentImport =
-                    $import->fresh();
-
+                $currentImport =$import->fresh();
                 if (
                     $currentImport->status ===
                     'cancelled'
@@ -172,7 +152,6 @@ class ProcessImportChunkJob implements ShouldQueue
                 if ($result === 'processed') 
                 {
                     $processedInChunk++;
-
                 } 
                 elseif (
                     $result === 'failed') 
@@ -185,42 +164,27 @@ class ProcessImportChunkJob implements ShouldQueue
                     $skippedInChunk++;
                 }
             }
-
         } 
         finally {
             fclose($handle);
         }
-
         Log::info(
             'Import chunk processed',
             [
-                'import_id' =>
-                    $import->id,
-
-                'start_row' =>
-                    $this->startRow,
-
-                'chunk_size' =>
-                    $this->chunkSize,
-
-                'processed' =>
-                    $processedInChunk,
-
-                'failed' =>
-                    $failedInChunk,
-
-                'skipped' =>
-                    $skippedInChunk,
+                'import_id'=>$import->id,
+                'start_row'=>$this->startRow,
+                'chunk_size'=>$this->chunkSize,
+                'processed'=>$processedInChunk,
+                'failed'=>$failedInChunk,
+                'skipped'=>$skippedInChunk,
             ]
         );
 
         $lastRowOfThisChunk =
             $this->startRow +
-            $this->chunkSize -
-            1;
+            $this->chunkSize -1;
 
-        $lastDataRow =
-            $this->totalRecords + 1;
+        $lastDataRow =$this->totalRecords + 1;
 
         if ($lastRowOfThisChunk >=$lastDataRow) 
         {
@@ -246,15 +210,11 @@ class ProcessImportChunkJob implements ShouldQueue
 
         $record = ImportRecord::firstOrCreate(
             [
-                'import_id' =>
-                    $import->id,
-
-                'row_number' =>
-                    $rowNumber,
+                'import_id'=>$import->id,
+                'row_number'=>$rowNumber,
             ],
             [
-                'status' =>
-                    'processing',
+                'status'=>'processing',
             ]
         );
         if (
@@ -267,24 +227,14 @@ class ProcessImportChunkJob implements ShouldQueue
                 true
             )
         ) {
-
             return 'skipped';
         }
 
         $validator = Validator::make(
             $data,
             [
-                'name' => [
-                    'required',
-                    'string',
-                    'max:255',
-                ],
-
-                'email' => [
-                    'required',
-                    'email',
-                    'max:255',
-                ],
+                'name' => ['required','string','max:255',],
+                'email' => ['required','email','max:255',],
             ]
         );
 
@@ -294,15 +244,9 @@ class ProcessImportChunkJob implements ShouldQueue
                 $import,
                 $record,
                 $data,
-                implode(
-                    ' ',
-                    $validator
-                        ->errors()
-                        ->all()
-                )
+                implode(' ',$validator->errors()->all())
             );
         }
-
         try {
             DB::transaction(
                 function () use (
@@ -311,44 +255,28 @@ class ProcessImportChunkJob implements ShouldQueue
                 ) {
                     User::firstOrCreate(
                         [
-                            'email' =>
-                                $data['email'],
+                            'email'=>$data['email'],
                         ],
                         [
-                            'name' =>
-                                $data['name'],
-
-                            'password' =>
-                                Hash::make(
-                                    Str::random(32)
-                                ),
+                            'name'=>$data['name'],
+                            'password'=>Hash::make(Str::random(32)),
                         ]
                     );
-
                     $record->update([
-                        'status' =>
-                            'processed',
+                        'status'=>'processed',
                     ]);
                 }
             );
-            $import->increment(
-                'processed_records'
-            );
+            $import->increment('processed_records');
             return 'processed';
-
         } 
         catch (Throwable $e) {
             Log::error(
                 'Import row failed unexpectedly',
                 [
-                    'import_id' =>
-                        $import->id,
-
-                    'row_number' =>
-                        $rowNumber,
-
-                    'error' =>
-                        $e->getMessage(),
+                    'import_id' =>$import->id,
+                    'row_number' =>$rowNumber,
+                    'error' => $e->getMessage(),
                 ]
             );
             throw $e;
@@ -365,31 +293,19 @@ class ProcessImportChunkJob implements ShouldQueue
             ) {
                 ImportError::firstOrCreate(
                     [
-                        'import_id' =>
-                            $import->id,
-
-                        'row_number' =>
-                            $record->row_number,
+                        'import_id' =>$import->id,
+                        'row_number' =>$record->row_number,
                     ],
                     [
-                        'row_data' =>
-                            $data,
-
-                        'error_message' =>
-                            $errorMessage,
+                        'row_data' =>$data,
+                        'error_message' =>$errorMessage,
                     ]
                 );
-
-                if (
-                    $record->status !==
-                    'failed'
-                ) {
-
+                if ($record->status !=='failed')
+                {
                     $record->update([
-                        'status' =>
-                            'failed',
+                        'status' =>'failed',
                     ]);
-
                     $import->increment(
                         'failed_records'
                     );
@@ -399,70 +315,45 @@ class ProcessImportChunkJob implements ShouldQueue
         Log::warning(
             'Import row validation failed',
             [
-                'import_id' =>
-                    $import->id,
-
-                'row_number' =>
-                    $record->row_number,
+                'import_id' =>$import->id,
+                'row_number' =>$record->row_number,
             ]
         );
         return 'failed';
     }
     private function completeImport(Import $import): void 
     {
-        $currentImport =
-            $import->fresh();
-
-        if (
-            $currentImport->status ===
-            'cancelled'
-        ) {
+        $currentImport=$import->fresh();
+        if ($currentImport->status ==='cancelled') 
+        {
             Log::info(
                 'Import completion skipped because import was cancelled',
                 [
-                    'import_id' =>
-                        $currentImport->id,
+                    'import_id' =>$currentImport->id,
                 ]
             );
             return;
         }
-
-        if (
-            $currentImport->status ===
-            'completed'
-        ) {
-
+        if ($currentImport->status ==='completed')
+            {
             return;
         }
 
         $currentImport->update([
-            'status' =>
-                'completed',
-
-            'completed_at' =>
-                now(),
+            'status' =>'completed',
+            'completed_at' =>now(),
         ]);
-
         event(
-            new ImportCompleted(
-                $currentImport->fresh()
+            new ImportCompleted($currentImport->fresh()
             )
         );
-
         Log::info(
             'Import completed successfully',
             [
-                'import_id' =>
-                    $currentImport->id,
-
-                'total_records' =>
-                    $currentImport->total_records,
-
-                'processed_records' =>
-                    $currentImport->processed_records,
-
-                'failed_records' =>
-                    $currentImport->failed_records,
+                'import_id' =>$currentImport->id,
+                'total_records' =>$currentImport->total_records,
+                'processed_records' => $currentImport->processed_records,
+                'failed_records' =>$currentImport->failed_records,
             ]
         );
     }
@@ -471,9 +362,7 @@ class ProcessImportChunkJob implements ShouldQueue
     {
         return count(
             array_filter(
-                $row,
-                fn ($value) =>
-                    trim((string) $value) !== ''
+                $row,fn ($value) =>trim((string) $value) !== ''
             )
         ) === 0;
     }

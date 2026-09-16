@@ -18,9 +18,7 @@ class ImportFailedMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(
-        public Import $import
-    )
+    public function __construct(public Import $import)
     {
         //
     }
@@ -30,9 +28,7 @@ class ImportFailedMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: 'CSV Import Failed Mail',
-        );
+        return new Envelope(subject: 'CSV Import Failed Mail',);
     }
 
     /**
@@ -40,9 +36,7 @@ class ImportFailedMail extends Mailable
      */
     public function content(): Content
     {
-        return new Content(
-            view: 'emails.import-failed',
-        );
+        return new Content(view: 'emails.import-failed',);
     }
 
     /**

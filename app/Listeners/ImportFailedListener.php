@@ -25,13 +25,7 @@ class ImportFailedListener
     public function handle(ImportFailed $event): void
     {
         $user = $event->import->user;
-
-        $user->notify(
-            new ImportFailedNotification(
-                $event->import,
-                $event->errorMessage
-            )
-        );
+        $user->notify(new ImportFailedNotification($event->import,$event->errorMessage));
         Mail::to($user->email)->send(new ImportFailedMail($event->import));
     }
 }
