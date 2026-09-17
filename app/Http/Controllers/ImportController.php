@@ -14,9 +14,8 @@ class ImportController extends Controller
 {
     use AuthorizesRequests;
 
-    public function __construct(
-        private ImportService $importservice
-    ) {
+    public function __construct(private ImportService $importservice) 
+    {
         //
     }
 
@@ -31,12 +30,8 @@ class ImportController extends Controller
                 $request->file('csv_file'),
                 $request->user()->id
         );
-        return redirect()
-            ->route('imports.index')
-            ->with(
-                'success',
-                'CSV import started successfully.'
-            );
+        return redirect()->route('imports.index')
+            ->with('success','CSV import started successfully.');
     }
 
     public function history(Request $request): View 
@@ -48,9 +43,7 @@ class ImportController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('imports.history', [
-            'imports' => $imports,
-        ]);
+        return view('imports.history', ['imports' => $imports,]);
     }
 
     public function show(Request $request,Import $import): View 
@@ -69,23 +62,17 @@ class ImportController extends Controller
     {
         $this->authorize('cancel', $import);
         $this->importservice->cancelImport($import);
-        return redirect()
-            ->route('imports.history')
-            ->with(
-                'success',
-                'Import cancelled successfully.'
-            );
+
+        return redirect()->route('imports.history')
+            ->with('success','Import cancelled successfully.');
     }
 
     public function retry(Import $import): RedirectResponse 
     {
         $this->authorize('retry', $import);
         $this->importservice->retryImport($import);
-        return redirect()
-            ->route('imports.history')
-            ->with(
-                'success',
-                'Import retry started successfully.'
-            );
+
+        return redirect()->route('imports.history')
+            ->with('success','Import retry started successfully.');
     }
 }

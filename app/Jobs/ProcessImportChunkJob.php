@@ -32,12 +32,8 @@ class ProcessImportChunkJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(
-        public int $importId,
-        public int $startRow,
-        public int $chunkSize = 1000,
-        public int $totalRecords = 0
-    ){
+    public function __construct(public int $importId,public int $startRow,public int $chunkSize = 1000,public int $totalRecords = 0)
+    {
         //
     }
 
@@ -74,15 +70,16 @@ class ProcessImportChunkJob implements ShouldQueue
             );
             return;
         }
+
         $disk = Storage::disk('local');
         if (! $disk->exists($import->file_path)) {
             throw new RuntimeException(
                 "Import file not found: {$import->file_path}"
             );
         }
-        $filePath = $disk->path(
-            $import->file_path
-        );
+
+        $filePath = $disk->path($import->file_path);
+
         $handle = fopen($filePath,'r');
         if ($handle === false) {
             throw new RuntimeException(
@@ -119,7 +116,7 @@ class ProcessImportChunkJob implements ShouldQueue
                 ) {
                     break;
                 }
-                
+
                 if (
                     $this->isEmptyRow($row)
                 ) {
@@ -127,10 +124,7 @@ class ProcessImportChunkJob implements ShouldQueue
                 }
 
                 $currentImport =$import->fresh();
-                if (
-                    $currentImport->status ===
-                    'cancelled'
-                ) 
+                if ($currentImport->status ==='cancelled') 
                 {
                     Log::info(
                         'Import chunk stopped because import was cancelled',
@@ -165,6 +159,7 @@ class ProcessImportChunkJob implements ShouldQueue
                 }
             }
         } 
+
         finally {
             fclose($handle);
         }
@@ -180,28 +175,20 @@ class ProcessImportChunkJob implements ShouldQueue
             ]
         );
 
-        $lastRowOfThisChunk =
-            $this->startRow +
-            $this->chunkSize -1;
+        $lastRowOfThisChunk = $this->startRow + $this->chunkSize -1;
 
         $lastDataRow =$this->totalRecords + 1;
 
         if ($lastRowOfThisChunk >=$lastDataRow) 
         {
-            $this->completeImport(
-                $import
-            );
+            $this->completeImport($import);
         }
     }
 
     private function processRow(Import $import,array $row,int $rowNumber): string 
     {
-        $name = trim(
-            (string) ($row[0] ?? '')
-        );
-        $email = trim(
-            (string) ($row[1] ?? '')
-        );
+        $name = trim((string) ($row[0] ?? ''));
+        $email = trim((string) ($row[1] ?? ''));
 
         $data = [
             'name' => $name,
@@ -218,14 +205,11 @@ class ProcessImportChunkJob implements ShouldQueue
             ]
         );
         if (
-            in_array(
-                $record->status,
+            in_array($record->status,
                 [
                     'processed',
                     'failed',
-                ],
-                true
-            )
+                ],true)
         ) {
             return 'skipped';
         }
@@ -262,9 +246,7 @@ class ProcessImportChunkJob implements ShouldQueue
                             'password'=>Hash::make(Str::random(32)),
                         ]
                     );
-                    $record->update([
-                        'status'=>'processed',
-                    ]);
+                    $record->update(['status'=>'processed',]);
                 }
             );
             $import->increment('processed_records');
@@ -290,7 +272,8 @@ class ProcessImportChunkJob implements ShouldQueue
                 $record,
                 $data,
                 $errorMessage
-            ) {
+            ) 
+            {
                 ImportError::firstOrCreate(
                     [
                         'import_id' =>$import->id,
@@ -303,12 +286,8 @@ class ProcessImportChunkJob implements ShouldQueue
                 );
                 if ($record->status !=='failed')
                 {
-                    $record->update([
-                        'status' =>'failed',
-                    ]);
-                    $import->increment(
-                        'failed_records'
-                    );
+                    $record->update(['status' =>'failed',]);
+                    $import->increment('failed_records');
                 }
             }
         );
@@ -343,10 +322,9 @@ class ProcessImportChunkJob implements ShouldQueue
             'status' =>'completed',
             'completed_at' =>now(),
         ]);
-        event(
-            new ImportCompleted($currentImport->fresh()
-            )
+        event(new ImportCompleted($currentImport->fresh())
         );
+
         Log::info(
             'Import completed successfully',
             [
@@ -361,9 +339,6 @@ class ProcessImportChunkJob implements ShouldQueue
     private function isEmptyRow(array $row): bool 
     {
         return count(
-            array_filter(
-                $row,fn ($value) =>trim((string) $value) !== ''
-            )
-        ) === 0;
+            array_filter($row,fn ($value) =>trim((string) $value) !== '')) === 0;
     }
 }

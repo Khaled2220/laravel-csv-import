@@ -15,6 +15,7 @@ class ImportService
     public function createImport(UploadedFile $file,int $userId): Import 
     {
         $filePath = $file->store('imports', 'local');
+
         $import = Import::create([
             'user_id' => $userId,
             'file_name' => $file->getClientOriginalName(),
@@ -24,6 +25,7 @@ class ImportService
             'processed_records' => 0,
             'failed_records' => 0,
         ]);
+
         PrepareImportJob::dispatch($import->id);
         return $import;
     }
@@ -78,9 +80,7 @@ class ImportService
             ]);
             $currentImport->errors()->delete();
             $currentImport->records()->delete();
-            PrepareImportJob::dispatch(
-                $currentImport->id
-            );
+            PrepareImportJob::dispatch($currentImport->id);
             Log::info('Import retry dispatched', [
                 'import_id' => $currentImport->id,
                 'total_records' => $currentImport->total_records,

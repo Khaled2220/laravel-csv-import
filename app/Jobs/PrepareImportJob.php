@@ -53,27 +53,22 @@ class PrepareImportJob implements ShouldQueue
                 );
             }
             $totalRecords = $this->countRecords($filePath);
-            $import->update([
-                'total_records' => $totalRecords,
-            ]);
+            $import->update(['total_records' => $totalRecords,]);
 
             if ($totalRecords === 0) {
                 $import->update([
                     'status' => 'completed',
                     'completed_at' => now(),
                 ]);
-                event(
-                    new ImportCompleted($import->fresh())
-                );
+                event(new ImportCompleted($import->fresh()));
                 return;
             }
             $import->update([
                 'status' => 'processing',
                 'started_at' => now(),
             ]);
-            event(
-                new ImportStarted($import->fresh())
-            );
+            event(new ImportStarted($import->fresh()));
+
             Log::info('Import chain started', [
                 'import_id' => $import->id,
             ]);
@@ -93,11 +88,9 @@ class PrepareImportJob implements ShouldQueue
                 'completed_at' => now(),
                 'error_message' => $e->getMessage(),
             ]);
-            event(
-                new ImportFailed(
-                    $currentImport->fresh(),
-                    $e->getMessage()
-                )
+            event(new ImportFailed(
+                $currentImport->fresh(),
+                $e->getMessage())
             );
             Log::error('Prepare import failed', [
                 'import_id' => $import->id,
@@ -135,18 +128,20 @@ class PrepareImportJob implements ShouldQueue
                     'completed_at' => now(),
                     'error_message' => $exception->getMessage(),
                 ]);
-                event(
-                    new ImportFailed(
+
+                event(new ImportFailed(
                         $currentImport->fresh(),
-                        $exception->getMessage()
-                    )
+                        $exception->getMessage())
                 );
+
                 Log::error('Import chain failed', [
                     'import_id' => $import->id,
                     'error' => $exception->getMessage(),
                 ]);
             })
             ->dispatch();
+
+
         Log::info('Import chain dispatched', [
             'import_id' => $import->id,
             'total_records' => $totalRecords,
@@ -164,9 +159,9 @@ class PrepareImportJob implements ShouldQueue
                 "Import file not found: {$filePath}"
             );
         }
-        $handle = fopen(
-            $disk->path($filePath),'r'
-        );
+
+        $handle = fopen($disk->path($filePath),'r');
+
         if ($handle === false) {
             throw new RuntimeException(
                 'Unable to open CSV file.'
@@ -179,11 +174,8 @@ class PrepareImportJob implements ShouldQueue
                     'CSV file is empty.'
                 );
             }
-            $header = array_map(
-                fn ($value) =>
-                    strtolower(trim((string) $value)),
-                $header
-            );
+            $header = array_map(fn ($value) =>strtolower(trim((string) $value)),$header);
+
             if ($header !== ['name', 'email']) {
                 throw new RuntimeException(
                     'CSV header must be: name,email'
@@ -205,13 +197,7 @@ class PrepareImportJob implements ShouldQueue
 
     private function isEmptyRow(array $row): bool
     {
-        return count(
-            array_filter(
-                $row,
-                fn ($value) =>
-                    trim((string) $value) !== ''
-            )
-        ) === 0;
+        return count(array_filter($row,fn ($value) =>trim((string) $value) !== '')) === 0;
     }
 
     public function backoff(): array

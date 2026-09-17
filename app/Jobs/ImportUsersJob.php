@@ -61,10 +61,9 @@ class ImportUsersJob implements ShouldQueue
                     'CSV file is empty.'
                 );
             }
-            $header = array_map(
-                fn ($value) => strtolower(trim($value)),
-                $header
-            );
+
+            $header = array_map(fn ($value) => strtolower(trim($value)),$header);
+
             if ($header !== ['name', 'email']) {
                 fclose($handle);
                 throw new \RuntimeException(
@@ -78,9 +77,9 @@ class ImportUsersJob implements ShouldQueue
                 }
                 $totalRecords++;
             }
-            $import->update([
-                'total_records' => $totalRecords,
-            ]);
+
+            $import->update(['total_records' => $totalRecords,]);
+
             rewind($handle);
             fgetcsv($handle);
             $rowNumber = 1;
@@ -151,9 +150,6 @@ class ImportUsersJob implements ShouldQueue
     private function isEmptyRow(array $row): bool
     {
         return count(
-            array_filter(
-                $row,fn ($value) => trim((string) $value) !== ''
-            )
-        ) === 0;
+            array_filter($row,fn ($value) => trim((string) $value) !== '')) === 0;
     }
 }
