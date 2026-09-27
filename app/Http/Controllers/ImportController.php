@@ -5,14 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ImportCsvRequest;
 use App\Models\Import;
 use App\Services\ImportService;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class ImportController extends Controller
 {
-    use AuthorizesRequests;
+   // use AuthorizesRequests;
 
     public function __construct(private ImportService $importservice) 
     {
@@ -36,6 +36,8 @@ class ImportController extends Controller
 
     public function history(Request $request): View 
     {
+        Gate::authorize('view-import-history');
+
         $imports = Import::where(
             'user_id',
             $request->user()->id
@@ -48,7 +50,8 @@ class ImportController extends Controller
 
     public function show(Request $request,Import $import): View 
     {
-        $this->authorize('view', $import);
+        Gate::authorize('view-import',$import);
+
         $errors = $import->errors()
             ->latest()
             ->paginate(20);
@@ -60,7 +63,8 @@ class ImportController extends Controller
 
     public function cancel(Import $import): RedirectResponse 
     {
-        $this->authorize('cancel', $import);
+        Gate::authorize('cancel-import',$import);
+
         $this->importservice->cancelImport($import);
 
         return redirect()->route('imports.history')
@@ -69,7 +73,8 @@ class ImportController extends Controller
 
     public function retry(Import $import): RedirectResponse 
     {
-        $this->authorize('retry', $import);
+        Gate::authorize('retry-import',$import);
+
         $this->importservice->retryImport($import);
 
         return redirect()->route('imports.history')
