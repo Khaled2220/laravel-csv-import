@@ -8,9 +8,9 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-//Route::get('/dashboard', function () {
-//    return view('dashboard');
-//})->middleware(['auth', 'verified'])->name('dashboard');
+// Route::get('/dashboard', function () {
+//     return view('dashboard');
+// })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
 
@@ -23,7 +23,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])
         ->name('profile.destroy');
 
-    // CSV Imports
+
+
     Route::get('/imports', [ImportController::class, 'index'])
         ->name('imports.index');
 
@@ -33,14 +34,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/imports/history', [ImportController::class, 'history'])
         ->name('imports.history');
 
+
+
     Route::get('/imports/{import}', [ImportController::class, 'show'])
+        ->middleware('can:view,import')
         ->name('imports.show');
 
-    Route::post('/imports/{import}/cancel',[ImportController::class,'cancel'])
-    ->name('imports.cancel');
-    
-    Route::post('/imports/{import}/retry',[ImportController::class,'retry'])
-    ->name('imports.retry');
+
+
+    Route::post('/imports/{import}/cancel', [ImportController::class, 'cancel'])
+        ->middleware('can:cancel,import')
+        ->name('imports.cancel');
+
+
+
+    Route::post('/imports/{import}/retry', [ImportController::class, 'retry'])
+        ->middleware('can:retry,import')
+        ->name('imports.retry');
 });
 
-require __DIR__.'/auth.php';
+
+require __DIR__ . '/auth.php';

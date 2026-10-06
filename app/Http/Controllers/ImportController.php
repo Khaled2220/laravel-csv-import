@@ -7,77 +7,80 @@ use App\Models\Import;
 use App\Services\ImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class ImportController extends Controller
 {
-   // use AuthorizesRequests;
-
     public function __construct(private ImportService $importservice) 
     {
         //
     }
 
+    /**
+     * Display the import page.
+     */
     public function index(): View
     {
         return view('imports.index');
     }
 
-    public function store(ImportCsvRequest $request): 
-        RedirectResponse {
-            $this->importservice->createImport(
-                $request->file('csv_file'),
-                $request->user()->id
+    /**
+     * Store a new CSV import.
+     */
+    public function store(ImportCsvRequest $request): RedirectResponse
+    {
+        $this->importservice->createImport(
+            $request->file('csv_file'),
+            $request->user()->id
         );
+
         return redirect()->route('imports.index')
-            ->with('success','CSV import started successfully.');
+            ->with('success', 'CSV import started successfully.');
     }
 
-    public function history(Request $request): View 
+    /**
+     * Display import history.
+     */
+    public function history(Request $request): View
     {
-        Gate::authorize('view-import-history');
-
-        $imports = Import::where(
-            'user_id',
-            $request->user()->id
-        )
+        $imports = Import::where('user_id', $request->user()->id)
             ->latest()
             ->paginate(10);
 
         return view('imports.history', ['imports' => $imports,]);
     }
 
-    public function show(Request $request,Import $import): View 
+    /**
+     * Display a specific import.
+     */
+    public function show(Import $import): View
     {
-        Gate::authorize('view-import',$import);
-
         $errors = $import->errors()
             ->latest()
             ->paginate(20);
-        return view('imports.show', [
-            'import' => $import,
-            'errors' => $errors,
-        ]);
+
+        return view('imports.show', ['import' => $import,'errors' => $errors,]);
     }
 
-    public function cancel(Import $import): RedirectResponse 
+    /**
+     * Cancel an import.
+     */
+    public function cancel(Import $import): RedirectResponse
     {
-        Gate::authorize('cancel-import',$import);
-
         $this->importservice->cancelImport($import);
 
         return redirect()->route('imports.history')
-            ->with('success','Import cancelled successfully.');
+            ->with('success', 'Import cancelled successfully.');
     }
 
-    public function retry(Import $import): RedirectResponse 
+    /**
+     * Retry a failed import.
+     */
+    public function retry(Import $import): RedirectResponse
     {
-        Gate::authorize('retry-import',$import);
-
         $this->importservice->retryImport($import);
 
         return redirect()->route('imports.history')
-            ->with('success','Import retry started successfully.');
+            ->with('success', 'Import retry started successfully.');
     }
 }

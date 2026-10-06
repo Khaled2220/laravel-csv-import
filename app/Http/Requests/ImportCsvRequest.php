@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Import;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
