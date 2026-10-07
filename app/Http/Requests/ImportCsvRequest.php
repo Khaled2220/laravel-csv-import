@@ -13,7 +13,7 @@ class ImportCsvRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('create', Import::class);
     }
 
     /**

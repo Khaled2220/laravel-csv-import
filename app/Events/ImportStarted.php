@@ -12,8 +12,6 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 
-
-
 class ImportStarted
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
@@ -25,16 +23,4 @@ class ImportStarted
     {
         //
     }
-
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, Channel>
-     */
-   // public function broadcastOn(): array
-    //{
-    //    return [
-      //      new PrivateChannel('channel-name'),
-    //    ];
- //   }
 }

@@ -4,7 +4,6 @@ namespace App\Policies;
 
 use App\Models\Import;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class ImportPolicy
 {
@@ -71,8 +70,7 @@ class ImportPolicy
     {
         return $import->user_id === $user->id && in_array($import->status,[
             'pending',
-            'processing',
-        ],true);
+            'processing',],true);
     }
 
     /**

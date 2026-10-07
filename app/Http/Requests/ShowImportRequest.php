@@ -15,7 +15,6 @@ class ShowImportRequest extends FormRequest
     {
         $import=$this->route('import');
         return $import instanceof Import && $import->user_id===$this->user()->id;
-
     }
 
     /**
